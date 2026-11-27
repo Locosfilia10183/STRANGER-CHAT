@@ -62,6 +62,14 @@ async function startMedia() {
     $('local-video').classList.remove('hidden');
     $('camera-placeholder').classList.add('hidden');
     $('camera-button').innerHTML = '<span>◉</span> Kamera ausschalten';
+    if (peer && matched) {
+      localStream.getTracks().forEach(track => peer.addTrack(track, localStream));
+      if (peer.signalingState === 'stable') {
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+        send({ type: 'signal', data: { description: peer.localDescription } });
+      }
+    }
     return true;
   } catch {
     showToast('Kamerazugriff verweigert. Du kannst zunächst den Textchat nutzen.');
@@ -279,8 +287,7 @@ $('join-form').addEventListener('submit', async event => {
   $('user-label').textContent = userName.toUpperCase();
   active = true;
   $('messages').innerHTML = '<div class="empty-message">Verbinde mit STRANGER …</div>';
-  await startMedia();
-  try { await connectSocket(); showToast('Verbunden. Wir suchen eine Person für dich.'); }
+  try { await connectSocket(); showToast('Verbunden. Kamera und Mikrofon bleiben zunächst aus.'); }
   catch { active = false; chat.classList.add('hidden'); welcome.classList.remove('hidden'); showToast('Chatserver nicht erreichbar.'); }
 });
 $('camera-button').addEventListener('click', async () => {
