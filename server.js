@@ -111,7 +111,7 @@ function queueClient(client, force = false) {
   client.matchState = 'idle';
   for (let i = waiting.length - 1; i >= 0; i--) {
     const candidate = clients.get(waiting[i]);
-    if (!candidate || candidate.ws.readyState !== WebSocket.OPEN || candidate.partnerId) {
+    if (!candidate || candidate.ws.readyState !== WebSocket.OPEN || candidate.partnerId || candidate.matchState !== 'waiting') {
       waiting.splice(i, 1);
     }
   }
@@ -122,6 +122,7 @@ function queueClient(client, force = false) {
   });
   if (matchIndex === -1) {
     waiting.push(client.id);
+    client.matchState = 'waiting';
     console.log('[matchmaking] waiting', { id: client.id, queue: waiting.length });
     send(client, { type: 'searching' });
     broadcastSearchingCount();
@@ -135,6 +136,9 @@ function queueClient(client, force = false) {
   console.log('[matchmaking] matched', { a: client.id, b: partner.id, waiting: waiting.length });
   client.partnerId = partner.id;
   partner.partnerId = client.id;
+  client.matchState = 'matched';
+  partner.matchState = 'matched';
+  client.matchId = partner.matchId = crypto.randomUUID();
   send(client, { type: 'matched', initiator: initiator.id === client.id });
   send(partner, { type: 'matched', initiator: initiator.id === partner.id });
 }
