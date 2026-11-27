@@ -59,6 +59,12 @@ server.on('upgrade', (req, socket, head) => {
 function send(client, payload) {
   if (client && client.readyState === WebSocket.OPEN) client.send(JSON.stringify(payload));
 }
+function broadcastOnlineCount() {
+  const payload = JSON.stringify({ type: 'online-count', count: clients.size });
+  for (const client of clients.values()) {
+    if (client.ws.readyState === WebSocket.OPEN) client.ws.send(payload);
+  }
+}
 function removeFromQueue(id) {
   const index = waiting.indexOf(id);
   if (index !== -1) waiting.splice(index, 1);
@@ -108,6 +114,7 @@ function closeClient(client) {
   removeFromQueue(client.id);
   clearPartner(client, true);
   clients.delete(client.id);
+  broadcastOnlineCount();
 }
 function validText(value, max) {
   return typeof value === 'string' && value.length > 0 && value.length <= max;
@@ -127,6 +134,7 @@ wss.on('connection', ws => {
   clients.set(client.id, client);
   console.log('[websocket] connected', { id: client.id, connected: clients.size });
   send(client, { type: 'ready', id: client.id });
+  broadcastOnlineCount();
 
   ws.isAlive = true;
   ws.on('pong', () => { ws.isAlive = true; });
