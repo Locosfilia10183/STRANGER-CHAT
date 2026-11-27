@@ -13,3 +13,5 @@
 .stop-button{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:#25212e;color:#f2edf9;font:700 13px 'DM Sans';padding:14px 16px;cursor:pointer}
 .stop-button:active{background:#352d43}
 @media(max-width:700px){.call-actions{grid-template-columns:1fr 1fr;gap:8px}.call-actions #camera-button{grid-column:1/-1}.call-actions .stop-button,.call-actions .next-button{min-height:48px}}
+
+.auth-panel{align-self:center}.auth-title{font:700 19px 'Space Grotesk';margin:0 0 8px}.auth-copy{font-size:12px;color:#aaa9b6;line-height:1.6;margin:0 0 20px}.google-button{width:100%;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:#fff;color:#222;padding:14px;font:700 14px 'DM Sans';display:flex;align-items:center;justify-content:center;gap:12px;cursor:pointer}.google-g{font:800 19px Arial;color:#4285f4}.heading-actions{display:flex;gap:8px;align-items:center}.signout-button{border:1px solid var(--line);background:#171720;color:#ddd;border-radius:10px;padding:10px 12px;font:600 11px 'DM Sans'}
