@@ -179,21 +179,30 @@ async function applyAuthSession(session) {
   $('auth-panel').classList.add('hidden');
   $('join-form').classList.remove('hidden');
   const googleName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || '';
-  if (!$('nickname').value) $('nickname').value = googleName.slice(0, 20);
   const profile = loadProfile();
-  if (profile && profile.userId === authUser.id) {
-    userName = profile.name; userAge = profile.age;
-    $('nickname').value = userName; $('age').value = String(userAge); $('rules').checked = true;
-    $('user-label').textContent = userName.toUpperCase();
-    welcome.classList.add('hidden'); chat.classList.remove('hidden');
-    $('messages').innerHTML = '<div class="empty-message">Sitzung wird wiederhergestellt …</div>';
-    active = true;
-    try { await connectSocket(); showToast('Willkommen zurück, ' + userName + '!'); }
-    catch { active = false; showToast('Angemeldet, aber Chatserver nicht erreichbar.'); }
+  if (profile) {
+    $('nickname').value = profile.name;
+    $('age').value = String(profile.age);
+  } else if (!$('nickname').value) {
+    $('nickname').value = googleName.slice(0, 20);
   }
+  // After OAuth return, keep the user on the profile form. Do not start a chat automatically.
+  welcome.classList.remove('hidden');
+  chat.classList.add('hidden');
 }
 supabaseClient.auth.getSession().then(({data}) => applyAuthSession(data.session));
 supabaseClient.auth.onAuthStateChange((_event, session) => { applyAuthSession(session); });
+function saveProfileDraft() {
+  if (!authUser) return;
+  const name = $('nickname').value.trim();
+  const age = Number($('age').value);
+  if (!name || name.length > 20 || !Number.isInteger(age) || age < 18 || age > 99) return;
+  try {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify({ name, age, userId: authUser.id }));
+  } catch (error) { console.warn('Profil konnte nicht gespeichert werden.', error); }
+}
+$('nickname').addEventListener('input', saveProfileDraft);
+$('age').addEventListener('input', saveProfileDraft);
 $('google-login').addEventListener('click', async () => {
   const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: 'google',
