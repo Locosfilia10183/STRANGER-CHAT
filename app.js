@@ -168,6 +168,26 @@ function loadProfile() {
     return { name, age };
   } catch { return null; }
 }
+async function fetchCloudProfile(userId) {
+  const { data, error } = await supabaseClient.from('profiles')
+    .select('display_name, age')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) {
+    console.error('Profil laden fehlgeschlagen:', error);
+    return null;
+  }
+  return data;
+}
+async function saveCloudProfile(name, age) {
+  const { error } = await supabaseClient.from('profiles').upsert({
+    id: authUser.id,
+    display_name: name,
+    age,
+    updated_at: new Date().toISOString()
+  });
+  if (error) throw error;
+}
 async function applyAuthSession(session) {
   authUser = session?.user || null;
   if (!authUser) {
@@ -179,15 +199,30 @@ async function applyAuthSession(session) {
   }
   $('auth-panel').classList.add('hidden');
   $('join-form').classList.remove('hidden');
-  const googleName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || '';
-  const profile = loadProfile();
-  if (profile) {
-    if (profile.name) $('nickname').value = profile.name;
-    if (profile.age) $('age').value = String(profile.age);
-  } else if (!$('nickname').value) {
-    $('nickname').value = googleName.slice(0, 20);
+  const profile = await fetchCloudProfile(authUser.id);
+  if (profile?.display_name && Number.isInteger(profile.age) && profile.age >= 18) {
+    userName = profile.display_name;
+    userAge = profile.age;
+    $('nickname').value = userName;
+    $('age').value = String(userAge);
+    $('rules').checked = true;
+    $('user-label').textContent = userName.toUpperCase();
+    welcome.classList.add('hidden');
+    chat.classList.remove('hidden');
+    $('messages').innerHTML = '<div class="empty-message">Du bist angemeldet. Wir suchen eine Person für dich …</div>';
+    active = true;
+    if (!socket || socket.readyState > WebSocket.OPEN) {
+      try { await connectSocket(); }
+      catch (error) {
+        active = false;
+        setStatus('Server nicht erreichbar. Bitte später erneut versuchen.');
+        showToast('Profil geladen, aber der Chatserver ist nicht erreichbar.');
+      }
+    }
+    return;
   }
-  // After OAuth return, keep the user on the profile form. Do not start a chat automatically.
+  const googleName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || '';
+  $('nickname').value = googleName.slice(0, 20);
   welcome.classList.remove('hidden');
   chat.classList.add('hidden');
 }
@@ -236,6 +271,8 @@ $('join-form').addEventListener('submit', async event => {
   if (!userName || userName.length > 20) return showToast('Bitte gib einen Namen mit maximal 20 Zeichen ein.');
   if (!Number.isInteger(userAge) || userAge < 18 || userAge > 99) return showToast('STRANGER ist ausschließlich für Erwachsene ab 18 Jahren.');
   if (!$('rules').checked) return showToast('Bitte bestätige die Alters- und Verhaltensregeln.');
+  try { await saveCloudProfile(userName, userAge); }
+  catch (error) { console.error(error); return showToast('Profil konnte nicht gespeichert werden. Bitte erneut versuchen.'); }
   saveProfile();
   welcome.classList.add('hidden');
   chat.classList.remove('hidden');
