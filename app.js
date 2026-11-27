@@ -150,6 +150,45 @@ function connectSocket() {
   });
 }
 
+const PROFILE_KEY = 'stranger.profile.v1';
+function saveProfile() {
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify({ name: userName, age: userAge })); }
+  catch (error) { console.warn('Profil konnte nicht gespeichert werden.', error); }
+}
+function loadProfile() {
+  try {
+    const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null');
+    if (!profile || typeof profile.name !== 'string' || !Number.isInteger(profile.age) || profile.age < 18 || profile.age > 99) return null;
+    const name = profile.name.trim().slice(0, 20);
+    return name ? { name, age: profile.age } : null;
+  } catch { return null; }
+}
+async function resumeSession() {
+  const profile = loadProfile();
+  if (!profile) return;
+  userName = profile.name;
+  userAge = profile.age;
+  $('nickname').value = userName;
+  $('age').value = String(userAge);
+  $('rules').checked = true;
+  $('user-label').textContent = userName.toUpperCase();
+  welcome.classList.add('hidden');
+  chat.classList.remove('hidden');
+  $('messages').innerHTML = '<div class="empty-message">Sitzung wird wiederhergestellt …</div>';
+  setStatus('Verbinde erneut …');
+  active = true;
+  try {
+    await connectSocket();
+    showToast('Willkommen zurück, ' + userName + '!');
+  } catch (error) {
+    active = false;
+    setStatus('Nicht verbunden. Tippe auf Weiter, sobald der Server erreichbar ist.');
+    $('messages').innerHTML = '<div class="empty-message">Dein Profil ist gespeichert.<br /><span>Die Verbindung konnte nicht hergestellt werden.</span></div>';
+    showToast('Profil geladen, Serververbindung fehlgeschlagen.');
+  }
+}
+resumeSession();
+
 $('join-form').addEventListener('submit', async event => {
   event.preventDefault();
   userName = $('nickname').value.trim();
@@ -157,6 +196,7 @@ $('join-form').addEventListener('submit', async event => {
   if (!userName || userName.length > 20) return showToast('Bitte gib einen Namen mit maximal 20 Zeichen ein.');
   if (!Number.isInteger(userAge) || userAge < 18 || userAge > 99) return showToast('STRANGER ist ausschließlich für Erwachsene ab 18 Jahren.');
   if (!$('rules').checked) return showToast('Bitte bestätige die Alters- und Verhaltensregeln.');
+  saveProfile();
   welcome.classList.add('hidden');
   chat.classList.remove('hidden');
   $('user-label').textContent = userName.toUpperCase();
@@ -219,6 +259,7 @@ $('block-button').addEventListener('click', () => {
 });
 function leaveChat() {
   active = false;
+  try { localStorage.removeItem(PROFILE_KEY); } catch {}
   send({ type: 'leave' });
   if (socket) { socket.close(); socket = null; }
   resetRemote();
