@@ -121,20 +121,25 @@ wss.on('connection', ws => {
     age: 0,
     partnerId: null,
     blocked: new Set(),
-    alive: true,
+    hasJoined: false,
     lastChatAt: 0
   };
   clients.set(client.id, client);
   console.log('[websocket] connected', { id: client.id, connected: clients.size });
   send(client, { type: 'ready', id: client.id });
 
-  ws.on('pong', () => { client.alive = true; });
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
   ws.on('message', raw => {
     let msg;
     try { msg = JSON.parse(raw.toString()); } catch { return send(client, { type: 'error', message: 'Ungültige Nachricht.' }); }
     if (!msg || typeof msg.type !== 'string') return;
 
     if (msg.type === 'join') {
+      if (client.hasJoined) {
+        console.log('[websocket] duplicate join ignored', { id: client.id });
+        return;
+      }
       const name = String(msg.name || '').trim().slice(0, 20);
       const age = Number(msg.age);
       if (!name || !Number.isInteger(age) || age < 18 || age > 99 || msg.adultConfirmed !== true) {
@@ -142,6 +147,7 @@ wss.on('connection', ws => {
       }
       client.name = name.replace(/[<>]/g, '');
       client.age = age;
+      client.hasJoined = true;
       console.log('[websocket] valid join', { id: client.id, age });
       queueClient(client);
       return;
