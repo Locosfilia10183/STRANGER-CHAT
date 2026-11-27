@@ -28,6 +28,17 @@ const clients = new Map();
 const waiting = [];
 const server = http.createServer((req, res) => {
   const pathname = new URL(req.url, 'http://localhost').pathname;
+  if (pathname === '/api/ice-config') {
+    const iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+    const turnUrls = String(process.env.TURN_URLS || '').split(',').map(value => value.trim()).filter(Boolean);
+    const turnUsername = process.env.TURN_USERNAME || '';
+    const turnCredential = process.env.TURN_CREDENTIAL || '';
+    if (turnUrls.length && turnUsername && turnCredential) {
+      iceServers.push({ urls: turnUrls, username: turnUsername, credential: turnCredential });
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+    return res.end(JSON.stringify({ iceServers }));
+  }
   const requested = pathname === '/' ? '/index.html' : pathname;
   const filePath = path.resolve(ROOT, '.' + requested);
   if (!filePath.startsWith(ROOT + path.sep) && filePath !== path.join(ROOT, 'index.html')) {
