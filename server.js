@@ -168,6 +168,7 @@ wss.on('connection', ws => {
     matchState: 'idle',
     matchId: null,
     lastChatAt: 0,
+    lastNextAt: 0,
     lastPongAt: Date.now(),
     closed: false
   };
@@ -207,6 +208,12 @@ wss.on('connection', ws => {
     }
     if (msg.type === 'next') {
       if (!client.name || client.age < 18) return;
+      const now = Date.now();
+      if (now - client.lastNextAt < 2500) {
+        console.log('[matchmaking] duplicate next ignored', { id: client.id, state: client.matchState });
+        return;
+      }
+      client.lastNextAt = now;
       queueClient(client, true);
       return;
     }
