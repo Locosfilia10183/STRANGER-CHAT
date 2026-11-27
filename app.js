@@ -194,6 +194,14 @@ $('message-form').addEventListener('submit', event => {
   addMessage(value, true);
   input.value = '';
 });
+$('stop-button').addEventListener('click', () => {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return showToast('Keine Serververbindung.');
+  resetRemote();
+  send({ type: 'leave' });
+  $('messages').innerHTML = '<div class="empty-message">Suche gestoppt.<br /><span>Tippe auf „Weiter“, wenn du wieder suchen möchtest.</span></div>';
+  setStatus('Suche gestoppt.');
+  showToast('Suche gestoppt.');
+});
 $('next-button').addEventListener('click', () => {
   if (!socket || socket.readyState !== WebSocket.OPEN) return showToast('Keine Serververbindung.');
   resetRemote();
