@@ -16,10 +16,22 @@ let localStream = null;
 let peer = null;
 let matched = false;
 let active = false;
+let pendingIceCandidates = [];
+let rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+let rtcConfigLoaded = null;
 
-const rtcConfig = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-};
+async function loadRtcConfig() {
+  if (!rtcConfigLoaded) {
+    rtcConfigLoaded = fetch('/api/ice-config', { cache: 'no-store' })
+      .then(response => response.ok ? response.json() : null)
+      .then(config => {
+        if (config && Array.isArray(config.iceServers) && config.iceServers.length) rtcConfig = config;
+        return rtcConfig;
+      })
+      .catch(error => { console.warn('ICE-Konfiguration konnte nicht geladen werden:', error); return rtcConfig; });
+  }
+  return rtcConfigLoaded;
+}
 
 function showToast(message) {
   toast.textContent = message;
@@ -43,6 +55,7 @@ function addMessage(text, mine, name) {
   $('messages').scrollTop = $('messages').scrollHeight;
 }
 function clearPeerMedia() {
+  pendingIceCandidates = [];
   if (peer) { peer.ontrack = null; peer.onicecandidate = null; peer.close(); peer = null; }
   $('remote-video').srcObject = null;
   $('remote-video').classList.add('hidden');
@@ -83,6 +96,7 @@ async function startMedia() {
 }
 async function createPeer(initiator) {
   clearPeerMedia();
+  await loadRtcConfig();
   peer = new RTCPeerConnection(rtcConfig);
   if (localStream) localStream.getTracks().forEach(track => peer.addTrack(track, localStream));
   peer.ontrack = event => {
@@ -105,17 +119,22 @@ async function createPeer(initiator) {
   }
 }
 async function handleSignal(data) {
-  if (!peer) return;
+  const currentPeer = peer;
+  if (!currentPeer) return;
   try {
     if (data.description) {
-      await peer.setRemoteDescription(data.description);
+      await currentPeer.setRemoteDescription(data.description);
+      if (peer !== currentPeer) return;
+      const queued = pendingIceCandidates.splice(0);
+      for (const candidate of queued) await currentPeer.addIceCandidate(candidate);
       if (data.description.type === 'offer') {
-        const answer = await peer.createAnswer();
-        await peer.setLocalDescription(answer);
-        send({ type: 'signal', data: { description: peer.localDescription } });
+        const answer = await currentPeer.createAnswer();
+        await currentPeer.setLocalDescription(answer);
+        send({ type: 'signal', data: { description: currentPeer.localDescription } });
       }
     } else if (data.candidate) {
-      await peer.addIceCandidate(data.candidate);
+      if (!currentPeer.remoteDescription) pendingIceCandidates.push(data.candidate);
+      else await currentPeer.addIceCandidate(data.candidate);
     }
   } catch (error) {
     console.error('WebRTC signaling error', error);
