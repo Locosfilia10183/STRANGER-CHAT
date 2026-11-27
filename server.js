@@ -11,7 +11,8 @@ const HOST = '0.0.0.0';
 const ROOT = __dirname;
 const MAX_MESSAGE = 8 * 1024;
 const MAX_CHAT_LENGTH = 500;
-const HEARTBEAT_MS = 25000;
+const HEARTBEAT_MS = 10000;
+const CLIENT_TIMEOUT_MS = 20000;
 const STATIC_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -60,7 +61,8 @@ function send(client, payload) {
   if (client && client.readyState === WebSocket.OPEN) client.send(JSON.stringify(payload));
 }
 function broadcastOnlineCount() {
-  const payload = JSON.stringify({ type: 'online-count', count: clients.size });
+  const onlineCount = [...clients.values()].filter(client => client.hasJoined && client.ws.readyState === WebSocket.OPEN && Date.now() - client.lastPongAt < CLIENT_TIMEOUT_MS).length;
+  const payload = JSON.stringify({ type: 'online-count', count: onlineCount });
   for (const client of clients.values()) {
     if (client.ws.readyState === WebSocket.OPEN) client.ws.send(payload);
   }
@@ -138,7 +140,8 @@ wss.on('connection', ws => {
     partnerId: null,
     blocked: new Set(),
     hasJoined: false,
-    lastChatAt: 0
+    lastChatAt: 0,
+    lastPongAt: Date.now()
   };
   clients.set(client.id, client);
   console.log('[websocket] connected', { id: client.id, connected: clients.size });
@@ -146,7 +149,10 @@ wss.on('connection', ws => {
   broadcastOnlineCount();
 
   ws.isAlive = true;
-  ws.on('pong', () => { ws.isAlive = true; });
+  ws.on('pong', () => {
+    ws.isAlive = true;
+    client.lastPongAt = Date.now();
+  });
   ws.on('message', raw => {
     let msg;
     try { msg = JSON.parse(raw.toString()); } catch { return send(client, { type: 'error', message: 'Ungültige Nachricht.' }); }
@@ -165,7 +171,9 @@ wss.on('connection', ws => {
       client.name = name.replace(/[<>]/g, '');
       client.age = age;
       client.hasJoined = true;
+      client.lastPongAt = Date.now();
       console.log('[websocket] valid join', { id: client.id, age });
+      broadcastOnlineCount();
       queueClient(client);
       return;
     }
@@ -221,11 +229,19 @@ wss.on('connection', ws => {
 });
 
 const heartbeat = setInterval(() => {
-  for (const ws of wss.clients) {
-    if (ws.isAlive === false) { ws.terminate(); continue; }
+  const now = Date.now();
+  for (const client of clients.values()) {
+    const ws = client.ws;
+    if (ws.readyState !== WebSocket.OPEN) continue;
+    if (now - client.lastPongAt > CLIENT_TIMEOUT_MS || ws.isAlive === false) {
+      ws.terminate();
+      continue;
+    }
     ws.isAlive = false;
     ws.ping();
   }
+  broadcastOnlineCount();
+  broadcastSearchingCount();
 }, HEARTBEAT_MS);
 wss.on('close', () => clearInterval(heartbeat));
 
