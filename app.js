@@ -142,6 +142,11 @@ function connectSocket() {
       let msg;
       try { msg = JSON.parse(event.data); } catch { return; }
       if (msg.type === 'ready') return;
+      if (msg.type === 'online-count') {
+        const counter = $('online-count');
+        if (counter && Number.isInteger(msg.count)) counter.textContent = msg.count + (msg.count === 1 ? ' online' : ' online');
+        return;
+      }
       if (msg.type === 'searching') {
         resetRemote();
         setStatus('Wir suchen jemanden für dich …');
