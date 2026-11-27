@@ -162,9 +162,10 @@ function saveProfile() {
 function loadProfile() {
   try {
     const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null');
-    if (!profile || profile.userId !== authUser?.id || typeof profile.name !== 'string' || !Number.isInteger(profile.age) || profile.age < 18 || profile.age > 99) return null;
-    const name = profile.name.trim().slice(0, 20);
-    return name ? { name, age: profile.age } : null;
+    if (!profile || profile.userId !== authUser?.id) return null;
+    const name = typeof profile.name === 'string' ? profile.name.trim().slice(0, 20) : '';
+    const age = Number.isInteger(profile.age) && profile.age >= 18 && profile.age <= 99 ? profile.age : null;
+    return { name, age };
   } catch { return null; }
 }
 async function applyAuthSession(session) {
@@ -181,8 +182,8 @@ async function applyAuthSession(session) {
   const googleName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || '';
   const profile = loadProfile();
   if (profile) {
-    $('nickname').value = profile.name;
-    $('age').value = String(profile.age);
+    if (profile.name) $('nickname').value = profile.name;
+    if (profile.age) $('age').value = String(profile.age);
   } else if (!$('nickname').value) {
     $('nickname').value = googleName.slice(0, 20);
   }
@@ -194,15 +195,18 @@ supabaseClient.auth.getSession().then(({data}) => applyAuthSession(data.session)
 supabaseClient.auth.onAuthStateChange((_event, session) => { applyAuthSession(session); });
 function saveProfileDraft() {
   if (!authUser) return;
-  const name = $('nickname').value.trim();
-  const age = Number($('age').value);
-  if (!name || name.length > 20 || !Number.isInteger(age) || age < 18 || age > 99) return;
+  const name = $('nickname').value.trim().slice(0, 20);
+  const rawAge = $('age').value.trim();
+  const age = rawAge === '' ? null : Number(rawAge);
+  const validAge = Number.isInteger(age) && age >= 18 && age <= 99 ? age : null;
   try {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify({ name, age, userId: authUser.id }));
+    localStorage.setItem(PROFILE_KEY, JSON.stringify({ name, age: validAge, userId: authUser.id }));
   } catch (error) { console.warn('Profil konnte nicht gespeichert werden.', error); }
 }
 $('nickname').addEventListener('input', saveProfileDraft);
 $('age').addEventListener('input', saveProfileDraft);
+$('nickname').addEventListener('change', saveProfileDraft);
+$('age').addEventListener('change', saveProfileDraft);
 $('google-login').addEventListener('click', async () => {
   const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: 'google',
