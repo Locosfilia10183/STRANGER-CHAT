@@ -24,7 +24,8 @@
         <p class="hero-subtitle">Ein Gespräch kann überall anfangen.<br />Finde heraus, wer als Nächstes dran ist.</p>
       </div>
 
-      <form id="join-form" class="join-card">
+      <div id="auth-panel" class="join-card auth-panel"><p class="auth-title">Melde dich sicher an</p><p class="auth-copy">Dein Konto bleibt auch nach dem Neuladen angemeldet.</p><button id="google-login" class="google-button" type="button"><span class="google-g">G</span> Mit Google anmelden</button></div>
+      <form id="join-form" class="join-card hidden">
         <div class="field-group">
           <label for="nickname">DEIN NAME</label>
           <input id="nickname" name="nickname" type="text" maxlength="20" placeholder="Wie sollen wir dich nennen?" autocomplete="nickname" required />
@@ -44,7 +45,7 @@
     <section id="chat" class="chat-view hidden">
       <div class="chat-heading">
         <div><div class="eyebrow"><span class="eyebrow-line"></span> LIVE CONNECTION</div><h2>Du bist <span>verbunden.</span></h2></div>
-        <button id="leave-button" class="icon-button" aria-label="Chat verlassen">✕</button>
+        <div class="heading-actions"><button id="signout-button" class="signout-button" type="button">Abmelden</button><button id="leave-button" class="icon-button" aria-label="Chat verlassen">✕</button></div>
       </div>
       <div class="video-grid">
         <div class="video-panel stranger-panel">
@@ -73,6 +74,7 @@
     </section>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./app.js"></script>
 </body>
 </html>
