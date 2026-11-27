@@ -9,3 +9,7 @@
 .safety-actions{display:flex;justify-content:flex-end;gap:9px;margin:-2px 0 12px}
 .safety-actions button{border:1px solid var(--line);background:transparent;color:#a7a4b1;border-radius:9px;padding:7px 11px;font:500 10px 'DM Sans'}
 .safety-actions button:active{background:#292333;color:#fff}
+
+.stop-button{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:#25212e;color:#f2edf9;font:700 13px 'DM Sans';padding:14px 16px;cursor:pointer}
+.stop-button:active{background:#352d43}
+@media(max-width:700px){.call-actions{grid-template-columns:1fr 1fr;gap:8px}.call-actions #camera-button{grid-column:1/-1}.call-actions .stop-button,.call-actions .next-button{min-height:48px}}
