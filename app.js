@@ -8,6 +8,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let authUser = null;
 let toastTimer;
 let socket = null;
+let socketConnectPromise = null;
+let authApplyToken = 0;
 let userName = '';
 let userAge = 0;
 let localStream = null;
@@ -40,11 +42,14 @@ function addMessage(text, mine, name) {
   $('messages').appendChild(bubble);
   $('messages').scrollTop = $('messages').scrollHeight;
 }
-function resetRemote() {
+function clearPeerMedia() {
   if (peer) { peer.ontrack = null; peer.onicecandidate = null; peer.close(); peer = null; }
   $('remote-video').srcObject = null;
   $('remote-video').classList.add('hidden');
   $('remote-placeholder').classList.remove('hidden');
+}
+function resetRemote() {
+  clearPeerMedia();
   matched = false;
 }
 function send(payload) {
@@ -77,7 +82,7 @@ async function startMedia() {
   }
 }
 async function createPeer(initiator) {
-  resetRemote();
+  clearPeerMedia();
   peer = new RTCPeerConnection(rtcConfig);
   if (localStream) localStream.getTracks().forEach(track => peer.addTrack(track, localStream));
   peer.ontrack = event => {
@@ -118,14 +123,16 @@ async function handleSignal(data) {
   }
 }
 function connectSocket() {
-  return new Promise((resolve, reject) => {
+  if (socket && socket.readyState === WebSocket.OPEN) return Promise.resolve();
+  if (socket && socket.readyState === WebSocket.CONNECTING && socketConnectPromise) return socketConnectPromise;
+  socketConnectPromise = new Promise((resolve, reject) => {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     socket = new WebSocket(protocol + '//' + location.host);
     socket.addEventListener('open', () => {
       send({ type: 'join', name: userName, age: userAge, adultConfirmed: true });
       resolve();
     }, { once: true });
-    socket.addEventListener('error', () => reject(new Error('Server nicht erreichbar.')));
+    socket.addEventListener('error', () => { socketConnectPromise = null; reject(new Error('Server nicht erreichbar.')); });
     socket.addEventListener('message', async event => {
       let msg;
       try { msg = JSON.parse(event.data); } catch { return; }
@@ -156,10 +163,12 @@ function connectSocket() {
       if (msg.type === 'reported') showToast('Meldung registriert. Danke für deinen Hinweis.');
     });
     socket.addEventListener('close', () => {
+      socketConnectPromise = null;
       if (active) showToast('Verbindung zum Server getrennt. Bitte neu starten.');
       resetRemote();
     });
   });
+  return socketConnectPromise;
 }
 
 const PROFILE_KEY = 'stranger.profile.v1';
@@ -197,6 +206,7 @@ async function saveCloudProfile(name, age) {
   if (error) throw error;
 }
 async function applyAuthSession(session) {
+  const applyToken = ++authApplyToken;
   authUser = session?.user || null;
   if (!authUser) {
     welcome.classList.remove('hidden');
@@ -208,6 +218,7 @@ async function applyAuthSession(session) {
   $('auth-panel').classList.add('hidden');
   $('join-form').classList.remove('hidden');
   const profile = await fetchCloudProfile(authUser.id);
+  if (applyToken !== authApplyToken) return;
   if (profile?.display_name && Number.isInteger(profile.age) && profile.age >= 18) {
     userName = profile.display_name;
     userAge = profile.age;
