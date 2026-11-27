@@ -213,3 +213,67 @@ $('signout-button').addEventListener('click', async () => {
   $('auth-panel').classList.remove('hidden'); $('join-form').classList.add('hidden');
   showToast('Du wurdest abgemeldet.');
 });
+
+
+$('join-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!authUser) return showToast('Bitte melde dich zuerst mit Google an.');
+  userName = $('nickname').value.trim();
+  userAge = Number($('age').value);
+  if (!userName || userName.length > 20) return showToast('Bitte gib einen Namen mit maximal 20 Zeichen ein.');
+  if (!Number.isInteger(userAge) || userAge < 18 || userAge > 99) return showToast('STRANGER ist ausschließlich für Erwachsene ab 18 Jahren.');
+  if (!$('rules').checked) return showToast('Bitte bestätige die Alters- und Verhaltensregeln.');
+  saveProfile();
+  welcome.classList.add('hidden');
+  chat.classList.remove('hidden');
+  $('user-label').textContent = userName.toUpperCase();
+  active = true;
+  $('messages').innerHTML = '<div class="empty-message">Verbinde mit STRANGER …</div>';
+  await startMedia();
+  try { await connectSocket(); showToast('Verbunden. Wir suchen eine Person für dich.'); }
+  catch { active = false; chat.classList.add('hidden'); welcome.classList.remove('hidden'); showToast('Chatserver nicht erreichbar.'); }
+});
+$('camera-button').addEventListener('click', async () => {
+  if (!localStream) return startMedia();
+  const enabled = localStream.getVideoTracks().some(track => track.enabled);
+  localStream.getTracks().forEach(track => { track.enabled = !enabled; });
+  $('camera-button').innerHTML = enabled ? '<span>◉</span> Kamera einschalten' : '<span>◉</span> Kamera ausschalten';
+  $('camera-placeholder').classList.toggle('hidden', enabled);
+  $('local-video').classList.toggle('hidden', enabled);
+});
+$('message-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const input = $('message-input'), value = input.value.trim();
+  if (!value) return;
+  if (!matched) return showToast('Warte zuerst auf eine Verbindung.');
+  send({type:'chat',text:value}); addMessage(value,true); input.value='';
+});
+$('stop-button').addEventListener('click', () => {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return showToast('Keine Serververbindung.');
+  resetRemote(); send({type:'leave'});
+  $('messages').innerHTML='<div class="empty-message">Suche gestoppt.<br /><span>Tippe auf „Weiter“, um erneut zu suchen.</span></div>';
+  setStatus('Suche gestoppt.');
+});
+$('next-button').addEventListener('click', () => {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return showToast('Keine Serververbindung.');
+  resetRemote(); $('messages').innerHTML='<div class="empty-message">Suche läuft …</div>';
+  setStatus('Wir suchen eine neue Person …'); send({type:'next'});
+});
+$('report-button').addEventListener('click', () => {
+  if (!matched) return showToast('Du bist aktuell mit niemandem verbunden.');
+  if (confirm('Möchtest du diese Person melden und das Gespräch beenden?')) send({type:'report'});
+});
+$('block-button').addEventListener('click', () => {
+  if (!matched) return showToast('Du bist aktuell mit niemandem verbunden.');
+  if (confirm('Möchtest du diese Person blockieren und das Gespräch beenden?')) send({type:'block'});
+});
+$('leave-button').addEventListener('click', () => {
+  active=false; send({type:'leave'});
+  if(socket){socket.close();socket=null;}
+  resetRemote();
+  if(localStream)localStream.getTracks().forEach(track=>track.stop());
+  localStream=null; $('local-video').srcObject=null;
+  $('local-video').classList.add('hidden'); $('camera-placeholder').classList.remove('hidden');
+  chat.classList.add('hidden'); welcome.classList.remove('hidden');
+  $('auth-panel').classList.add('hidden'); $('join-form').classList.remove('hidden');
+});
