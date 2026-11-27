@@ -144,7 +144,12 @@ function connectSocket() {
       if (msg.type === 'ready') return;
       if (msg.type === 'online-count') {
         const counter = $('online-count');
-        if (counter && Number.isInteger(msg.count)) counter.textContent = msg.count + (msg.count === 1 ? ' online' : ' online');
+        if (counter && Number.isInteger(msg.count)) counter.textContent = msg.count + ' online';
+        return;
+      }
+      if (msg.type === 'searching-count') {
+        const counter = $('searching-count');
+        if (counter && Number.isInteger(msg.count)) counter.textContent = msg.count + ' suchen';
         return;
       }
       if (msg.type === 'searching') {
