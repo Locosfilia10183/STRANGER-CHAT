@@ -127,13 +127,18 @@ function connectSocket() {
   if (socket && socket.readyState === WebSocket.CONNECTING && socketConnectPromise) return socketConnectPromise;
   socketConnectPromise = new Promise((resolve, reject) => {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    socket = new WebSocket(protocol + '//' + location.host);
-    socket.addEventListener('open', () => {
+    const ws = new WebSocket(protocol + '//' + location.host);
+    socket = ws;
+    ws.addEventListener('open', () => {
       send({ type: 'join', name: userName, age: userAge, adultConfirmed: true });
       resolve();
     }, { once: true });
-    socket.addEventListener('error', () => { socketConnectPromise = null; reject(new Error('Server nicht erreichbar.')); });
-    socket.addEventListener('message', async event => {
+    ws.addEventListener('error', () => {
+      if (socket === ws) socketConnectPromise = null;
+      reject(new Error('Server nicht erreichbar.'));
+    });
+    ws.addEventListener('message', async event => {
+      if (socket !== ws) return;
       let msg;
       try { msg = JSON.parse(event.data); } catch { return; }
       if (msg.type === 'ready') return;
@@ -162,7 +167,9 @@ function connectSocket() {
       if (msg.type === 'blocked') showToast('Person blockiert. Wir suchen weiter.');
       if (msg.type === 'reported') showToast('Meldung registriert. Danke für deinen Hinweis.');
     });
-    socket.addEventListener('close', () => {
+    ws.addEventListener('close', () => {
+      if (socket !== ws) return;
+      socket = null;
       socketConnectPromise = null;
       if (active) showToast('Verbindung zum Server getrennt. Bitte neu starten.');
       resetRemote();
