@@ -92,15 +92,23 @@ function clearPartner(client, notify = true) {
   if (!client || !client.partnerId) return;
   const partner = clients.get(client.partnerId);
   client.partnerId = null;
+  client.matchId = null;
+  client.matchState = 'idle';
   if (partner && partner.partnerId === client.id) {
     partner.partnerId = null;
+    partner.matchId = null;
+    partner.matchState = 'idle';
     if (notify) send(partner, { type: 'partner-left' });
   }
 }
-function queueClient(client) {
-  console.log('[matchmaking] queue request', { id: client.id, waiting: waiting.length, connected: clients.size });
+function queueClient(client, force = false) {
+  if (!client || !client.hasJoined || client.ws.readyState !== WebSocket.OPEN) return;
+  if (client.matchState === 'matched' && !force) return;
+  if (client.matchState === 'waiting' && !force) return;
+  console.log('[matchmaking] queue request', { id: client.id, state: client.matchState, waiting: waiting.length, connected: clients.size });
   removeFromQueue(client.id);
   if (client.partnerId) clearPartner(client, true);
+  client.matchState = 'idle';
   for (let i = waiting.length - 1; i >= 0; i--) {
     const candidate = clients.get(waiting[i]);
     if (!candidate || candidate.ws.readyState !== WebSocket.OPEN || candidate.partnerId) {
@@ -151,6 +159,8 @@ wss.on('connection', ws => {
     partnerId: null,
     blocked: new Set(),
     hasJoined: false,
+    matchState: 'idle',
+    matchId: null,
     lastChatAt: 0,
     lastPongAt: Date.now()
   };
@@ -190,12 +200,13 @@ wss.on('connection', ws => {
     }
     if (msg.type === 'next') {
       if (!client.name || client.age < 18) return;
-      queueClient(client);
+      queueClient(client, true);
       return;
     }
     if (msg.type === 'leave') {
       removeFromQueue(client.id);
       clearPartner(client, true);
+      client.matchState = 'idle';
       send(client, { type: 'left' });
       broadcastSearchingCount();
       return;
