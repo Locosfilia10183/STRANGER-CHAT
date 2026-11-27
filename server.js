@@ -65,6 +65,12 @@ function broadcastOnlineCount() {
     if (client.ws.readyState === WebSocket.OPEN) client.ws.send(payload);
   }
 }
+function broadcastSearchingCount() {
+  const payload = JSON.stringify({ type: 'searching-count', count: waiting.length });
+  for (const client of clients.values()) {
+    if (client.ws.readyState === WebSocket.OPEN) client.ws.send(payload);
+  }
+}
 function removeFromQueue(id) {
   const index = waiting.indexOf(id);
   if (index !== -1) waiting.splice(index, 1);
@@ -97,9 +103,11 @@ function queueClient(client) {
     waiting.push(client.id);
     console.log('[matchmaking] waiting', { id: client.id, queue: waiting.length });
     send(client, { type: 'searching' });
+    broadcastSearchingCount();
     return;
   }
   const [partnerId] = waiting.splice(matchIndex, 1);
+  broadcastSearchingCount();
   const partner = clients.get(partnerId);
   if (!partner) return queueClient(client);
   const initiator = Math.random() < 0.5 ? client : partner;
@@ -115,6 +123,7 @@ function closeClient(client) {
   clearPartner(client, true);
   clients.delete(client.id);
   broadcastOnlineCount();
+  broadcastSearchingCount();
 }
 function validText(value, max) {
   return typeof value === 'string' && value.length > 0 && value.length <= max;
@@ -169,6 +178,7 @@ wss.on('connection', ws => {
       removeFromQueue(client.id);
       clearPartner(client, true);
       send(client, { type: 'left' });
+      broadcastSearchingCount();
       return;
     }
     if (msg.type === 'chat') {
