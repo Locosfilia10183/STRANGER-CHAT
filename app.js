@@ -9,6 +9,8 @@ let authUser = null;
 let toastTimer;
 let socket = null;
 let socketConnectPromise = null;
+let reconnectTimer = null;
+let reconnectAttempts = 0;
 let authApplyToken = 0;
 let userName = '';
 let userAge = 0;
@@ -149,7 +151,9 @@ function connectSocket() {
     const ws = new WebSocket(protocol + '//' + location.host);
     socket = ws;
     ws.addEventListener('open', () => {
-      send({ type: 'join', name: userName, age: userAge, adultConfirmed: true });
+      reconnectAttempts = 0;
+      if (socket !== ws) return;
+      ws.send(JSON.stringify({ type: 'join', name: userName, age: userAge, adultConfirmed: true }));
       resolve();
     }, { once: true });
     ws.addEventListener('error', () => {
@@ -202,6 +206,16 @@ function connectSocket() {
       socketConnectPromise = null;
       if (active) showToast('Verbindung zum Server getrennt. Bitte neu starten.');
       resetRemote();
+      if (active && !reconnectTimer) {
+        const delay = Math.min(1000 * (2 ** reconnectAttempts), 15000);
+        reconnectAttempts++;
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null;
+          if (!active || (socket && socket.readyState <= WebSocket.OPEN)) return;
+          connectSocket().catch(() => {});
+        }, delay);
+        setStatus('Verbindung verloren. Neuer Verbindungsversuch …');
+      }
     });
   });
   return socketConnectPromise;
@@ -306,6 +320,7 @@ $('google-login').addEventListener('click', async () => {
 });
 $('signout-button').addEventListener('click', async () => {
   active = false;
+  clearTimeout(reconnectTimer); reconnectTimer = null;
   if (socket) { socket.close(); socket = null; }
   resetRemote();
   if (localStream) localStream.getTracks().forEach(track => track.stop());
@@ -372,7 +387,7 @@ $('block-button').addEventListener('click', () => {
   if (confirm('Möchtest du diese Person blockieren und das Gespräch beenden?')) send({type:'block'});
 });
 $('leave-button').addEventListener('click', () => {
-  active=false; send({type:'leave'});
+  active=false; clearTimeout(reconnectTimer); reconnectTimer=null; send({type:'leave'});
   if(socket){socket.close();socket=null;}
   resetRemote();
   if(localStream)localStream.getTracks().forEach(track=>track.stop());
