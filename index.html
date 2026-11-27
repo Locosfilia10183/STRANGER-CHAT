@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#09090d" />
+  <meta name="description" content="STRANGER — spontane Gespräche mit neuen Menschen." />
+  <title>STRANGER — Meet someone new</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="STRANGER Startseite"><span class="brand-mark">S</span><span>STRANGER<span class="brand-dot">.</span></span></a>
+      <div class="online-pill"><i></i><span>Random video chat</span></div>
+    </header>
+
+    <section id="welcome" class="welcome-view">
+      <div class="hero-glow"></div>
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="eyebrow-line"></span> NO PROFILES. JUST PEOPLE.</div>
+        <h1>Meet someone<br /><span>new.</span></h1>
+        <p class="hero-subtitle">Ein Gespräch kann überall anfangen.<br />Finde heraus, wer als Nächstes dran ist.</p>
+      </div>
+
+      <form id="join-form" class="join-card">
+        <div class="field-group">
+          <label for="nickname">DEIN NAME</label>
+          <input id="nickname" name="nickname" type="text" maxlength="20" placeholder="Wie sollen wir dich nennen?" autocomplete="nickname" required />
+        </div>
+        <div class="field-group">
+          <label for="age">DEIN ALTER</label>
+          <input id="age" name="age" type="number" min="18" max="99" inputmode="numeric" placeholder="18+" required />
+          <span class="field-hint">STRANGER ist ausschließlich für Erwachsene (18+).</span>
+        </div>
+        <label class="consent-row"><input id="rules" type="checkbox" required /><span>Ich bin mindestens 18 Jahre alt und akzeptiere einen respektvollen Umgang.</span></label>
+        <button class="primary-button" type="submit"><span>Start chatting</span><span class="button-arrow">↗</span></button>
+        <div class="privacy-note"><span class="lock-icon">⌑</span> Kein Konto. Keine E-Mail. Einfach loslegen.</div>
+      </form>
+      <footer class="welcome-footer"><span>BE KIND. STAY HUMAN.</span><span>STRANGER © 2026</span></footer>
+    </section>
+
+    <section id="chat" class="chat-view hidden">
+      <div class="chat-heading">
+        <div><div class="eyebrow"><span class="eyebrow-line"></span> LIVE CONNECTION</div><h2>Du bist <span>verbunden.</span></h2></div>
+        <button id="leave-button" class="icon-button" aria-label="Chat verlassen">✕</button>
+      </div>
+      <div class="video-grid">
+        <div class="video-panel stranger-panel">
+          <div class="video-placeholder"><div class="radar"><span></span><span></span><span></span></div><p id="connection-label">Bereit für dein nächstes Gespräch?</p><small>Dein Gesprächspartner erscheint hier</small></div>
+          <div class="video-label"><span class="live-dot"></span> STRANGER <span class="you-tag">LIVE</span></div>
+        </div>
+        <div class="video-panel self-panel">
+          <video id="local-video" autoplay muted playsinline></video>
+          <div id="camera-placeholder" class="camera-placeholder"><span>◉</span><small>Deine Kamera ist noch aus</small></div>
+          <div class="video-label">DU · <span id="user-label">GAST</span></div>
+        </div>
+      </div>
+      <div class="call-actions">
+        <button id="camera-button" class="secondary-button"><span>◉</span> Kamera starten</button>
+        <button id="next-button" class="next-button"><span>Nächste Person</span><span>→</span></button>
+      </div>
+      <section class="messages-card">
+        <div class="messages-head"><div><span class="chat-icon">✳</span><strong>Nachrichten</strong></div><span class="secure-label">SESSION CHAT</span></div>
+        <div id="messages" class="messages"><div class="empty-message">Sag Hallo 👋<br /><span>Deine Nachrichten erscheinen hier.</span></div></div>
+        <form id="message-form" class="message-form"><input id="message-input" maxlength="500" placeholder="Nachricht schreiben …" autocomplete="off" /><button type="submit" aria-label="Nachricht senden">↑</button></form>
+      </section>
+      <p class="safety-note">Behandle andere respektvoll. Teile keine privaten Daten. Du kannst das Gespräch jederzeit verlassen.</p>
+    </section>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>
