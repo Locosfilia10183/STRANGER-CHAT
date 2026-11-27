@@ -11,8 +11,8 @@ const HOST = '0.0.0.0';
 const ROOT = __dirname;
 const MAX_MESSAGE = 8 * 1024;
 const MAX_CHAT_LENGTH = 500;
-const HEARTBEAT_MS = 10000;
-const CLIENT_TIMEOUT_MS = 20000;
+const HEARTBEAT_MS = 25000;
+const CLIENT_TIMEOUT_MS = 75000;
 const STATIC_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -143,6 +143,8 @@ function queueClient(client, force = false) {
   send(partner, { type: 'matched', initiator: initiator.id === partner.id });
 }
 function closeClient(client) {
+  if (!client || client.closed) return;
+  client.closed = true;
   console.log('[websocket] closed', { id: client.id });
   removeFromQueue(client.id);
   clearPartner(client, true);
@@ -166,7 +168,8 @@ wss.on('connection', ws => {
     matchState: 'idle',
     matchId: null,
     lastChatAt: 0,
-    lastPongAt: Date.now()
+    lastPongAt: Date.now(),
+    closed: false
   };
   clients.set(client.id, client);
   console.log('[websocket] connected', { id: client.id, connected: clients.size });
@@ -259,11 +262,10 @@ const heartbeat = setInterval(() => {
   for (const client of clients.values()) {
     const ws = client.ws;
     if (ws.readyState !== WebSocket.OPEN) continue;
-    if (now - client.lastPongAt > CLIENT_TIMEOUT_MS || ws.isAlive === false) {
+    if (now - client.lastPongAt > CLIENT_TIMEOUT_MS) {
       ws.terminate();
       continue;
     }
-    ws.isAlive = false;
     ws.ping();
   }
   broadcastOnlineCount();
