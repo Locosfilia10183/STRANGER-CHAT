@@ -73,6 +73,7 @@ function clearPartner(client, notify = true) {
   }
 }
 function queueClient(client) {
+  console.log('[matchmaking] queue request', { id: client.id, waiting: waiting.length, connected: clients.size });
   removeFromQueue(client.id);
   if (client.partnerId) clearPartner(client, true);
   for (let i = waiting.length - 1; i >= 0; i--) {
@@ -88,6 +89,7 @@ function queueClient(client) {
   });
   if (matchIndex === -1) {
     waiting.push(client.id);
+    console.log('[matchmaking] waiting', { id: client.id, queue: waiting.length });
     send(client, { type: 'searching' });
     return;
   }
@@ -95,12 +97,14 @@ function queueClient(client) {
   const partner = clients.get(partnerId);
   if (!partner) return queueClient(client);
   const initiator = Math.random() < 0.5 ? client : partner;
+  console.log('[matchmaking] matched', { a: client.id, b: partner.id, waiting: waiting.length });
   client.partnerId = partner.id;
   partner.partnerId = client.id;
   send(client, { type: 'matched', initiator: initiator.id === client.id });
   send(partner, { type: 'matched', initiator: initiator.id === partner.id });
 }
 function closeClient(client) {
+  console.log('[websocket] closed', { id: client.id });
   removeFromQueue(client.id);
   clearPartner(client, true);
   clients.delete(client.id);
@@ -121,6 +125,7 @@ wss.on('connection', ws => {
     lastChatAt: 0
   };
   clients.set(client.id, client);
+  console.log('[websocket] connected', { id: client.id, connected: clients.size });
   send(client, { type: 'ready', id: client.id });
 
   ws.on('pong', () => { client.alive = true; });
@@ -137,6 +142,7 @@ wss.on('connection', ws => {
       }
       client.name = name.replace(/[<>]/g, '');
       client.age = age;
+      console.log('[websocket] valid join', { id: client.id, age });
       queueClient(client);
       return;
     }
